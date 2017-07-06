@@ -17,11 +17,10 @@
  */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedEscortAI.h"
-#include "razorfen_kraul.h"
-#include "Player.h"
 #include "PetAI.h"
+#include "Player.h"
+#include "razorfen_kraul.h"
+#include "ScriptedEscortAI.h"
 #include "SpellScript.h"
 
 enum Willix
@@ -57,7 +56,7 @@ public:
             {
                 Start(true, false, player->GetGUID());
                 Talk(SAY_READY, player);
-                me->SetFaction(113);
+                me->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_PASSIVE);
             }
         }
 
@@ -132,7 +131,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return new npc_willixAI(creature);
+        return GetRazorfenKraulAI<npc_willixAI>(creature);
     }
 };
 

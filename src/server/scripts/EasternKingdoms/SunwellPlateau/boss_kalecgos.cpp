@@ -24,10 +24,17 @@ SDCategory: Sunwell_Plateau
 EndScriptData */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
+#include "GameObject.h"
 #include "GameObjectAI.h"
-#include "sunwell_plateau.h"
+#include "InstanceScript.h"
+#include "Log.h"
+#include "Map.h"
+#include "MotionMaster.h"
+#include "ObjectAccessor.h"
 #include "Player.h"
+#include "ScriptedCreature.h"
+#include "sunwell_plateau.h"
+#include "TemporarySummon.h"
 #include "WorldSession.h"
 
 enum Yells
@@ -150,13 +157,15 @@ public:
 
         void Reset() override
         {
-            SathGUID = instance->GetGuidData(DATA_SATHROVARR);
+            if (Creature* sath = instance->GetCreature(DATA_SATHROVARR))
+                SathGUID = sath->GetGUID();
+
             instance->SetBossState(DATA_KALECGOS, NOT_STARTED);
 
             if (Creature* Sath = ObjectAccessor::GetCreature(*me, SathGUID))
                 Sath->AI()->EnterEvadeMode();
 
-            me->SetFaction(14);
+            me->SetFaction(FACTION_MONSTER);
             if (!bJustReset) //first reset at create
             {
                 me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE + UNIT_FLAG_NOT_SELECTABLE);
@@ -199,7 +208,7 @@ public:
                     me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE + UNIT_FLAG_NOT_SELECTABLE);
                     me->InterruptNonMeleeSpells(true);
                     me->RemoveAllAuras();
-                    me->DeleteThreatList();
+                    me->GetThreatManager().ClearAllThreat();
                     me->CombatStop();
                     ++TalkSequence;
                 }
@@ -292,7 +301,7 @@ public:
 
                 if (SpectralBlastTimer <= diff)
                 {
-                    ThreatContainer::StorageType const& m_threatlist = me->getThreatManager().getThreatList();
+                    ThreatContainer::StorageType const& m_threatlist = me->GetThreatManager().getThreatList();
                     std::list<Unit*> targetList;
                     for (ThreatContainer::StorageType::const_iterator itr = m_threatlist.begin(); itr!= m_threatlist.end(); ++itr)
                     {
@@ -380,7 +389,7 @@ public:
             switch (TalkSequence)
             {
                 case 1:
-                    me->SetFaction(35);
+                    me->SetFaction(FACTION_FRIENDLY);
                     TalkTimer = 1000;
                     break;
                 case 2:
@@ -432,7 +441,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetInstanceAI<boss_kalecAI>(creature);
+        return GetSunwellPlateauAI<boss_kalecAI>(creature);
     }
 
     struct boss_kalecAI : public ScriptedAI
@@ -466,7 +475,8 @@ public:
 
         void Reset() override
         {
-            SathGUID = instance->GetGuidData(DATA_SATHROVARR);
+            if (Creature* sath = instance->GetCreature(DATA_SATHROVARR))
+                SathGUID = sath->GetGUID();
 
             Initialize();
         }
@@ -541,11 +551,11 @@ public:
     {
         kalecgos_teleporterAI(GameObject* go) : GameObjectAI(go) { }
 
-        bool GossipHello(Player* player, bool /*reportUse*/) override
+        bool GossipHello(Player* player) override
         {
 #if MAX_PLAYERS_IN_SPECTRAL_REALM > 0
             uint8 SpectralPlayers = 0;
-            Map::PlayerList const &PlayerList = go->GetMap()->GetPlayers();
+            Map::PlayerList const& PlayerList = go->GetMap()->GetPlayers();
             for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
             {
                 if (i->GetSource() && i->GetSource()->GetPositionZ() < DEMON_REALM_Z + 5)
@@ -576,7 +586,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetInstanceAI<boss_sathrovarrAI>(creature);
+        return GetSunwellPlateauAI<boss_sathrovarrAI>(creature);
     }
 
     struct boss_sathrovarrAI : public ScriptedAI
@@ -616,7 +626,8 @@ public:
         {
             me->SetFullHealth();//dunno why it does not resets health at evade..
             me->setActive(true);
-            KalecgosGUID = instance->GetGuidData(DATA_KALECGOS_DRAGON);
+            if (Creature* kalecgos = instance->GetCreature(DATA_KALECGOS_DRAGON))
+                KalecgosGUID = kalecgos->GetGUID();
             instance->SetBossState(DATA_KALECGOS, NOT_STARTED);
             if (KalecGUID)
             {
@@ -633,11 +644,11 @@ public:
 
         void EnterCombat(Unit* /*who*/) override
         {
-            if (Creature* Kalec = me->SummonCreature(NPC_KALEC, me->GetPositionX() + 10, me->GetPositionY() + 5, me->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 0))
+            if (Creature* Kalec = me->SummonCreature(NPC_KALECGOS_HUMAN, me->GetPositionX() + 10, me->GetPositionY() + 5, me->GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 0))
             {
                 KalecGUID = Kalec->GetGUID();
                 me->CombatStart(Kalec);
-                me->AddThreat(Kalec, 100.0f);
+                AddThreat(Kalec, 100.0f);
                 Kalec->setActive(true);
             }
             Talk(SAY_SATH_AGGRO);
@@ -681,7 +692,7 @@ public:
 
         void TeleportAllPlayersBack()
         {
-            Map::PlayerList const &playerList = me->GetMap()->GetPlayers();
+            Map::PlayerList const& playerList = me->GetMap()->GetPlayers();
             Position const& homePos = me->GetHomePosition();
             for (Map::PlayerList::const_iterator itr = playerList.begin(); itr != playerList.end(); ++itr)
             {
@@ -764,12 +775,12 @@ public:
 
             if (ResetThreat <= diff)
             {
-                ThreatContainer::StorageType threatlist = me->getThreatManager().getThreatList();
+                ThreatContainer::StorageType threatlist = me->GetThreatManager().getThreatList();
                 for (ThreatContainer::StorageType::const_iterator itr = threatlist.begin(); itr != threatlist.end(); ++itr)
                 {
                     if (Unit* unit = ObjectAccessor::GetUnit(*me, (*itr)->getUnitGuid()))
                         if (unit->GetPositionZ() > me->GetPositionZ() + 5)
-                            me->getThreatManager().modifyThreatPercent(unit, -100);
+                            me->GetThreatManager().ModifyThreatByPercent(unit, -100);
                 }
                 ResetThreat = 1000;
             } else ResetThreat -= diff;

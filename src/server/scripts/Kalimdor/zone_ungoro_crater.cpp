@@ -29,10 +29,10 @@ npc_ringo
 EndContentData */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
+#include "ObjectAccessor.h"
+#include "Player.h"
 #include "ScriptedEscortAI.h"
 #include "ScriptedFollowerAI.h"
-#include "Player.h"
 #include "SpellInfo.h"
 
 enum AmeData
@@ -137,7 +137,7 @@ public:
                 Talk(SAY_READY, player);
                 me->SetUInt32Value(UNIT_FIELD_BYTES_1, 0);
                 // Change faction so mobs attack
-                me->SetFaction(113);
+                me->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_PASSIVE);
             }
         }
     };
@@ -227,7 +227,7 @@ public:
             }
         }
 
-        void SpellHit(Unit* /*pCaster*/, const SpellInfo* pSpell) override
+        void SpellHit(Unit* /*pCaster*/, SpellInfo const* pSpell) override
         {
             if (HasFollowState(STATE_FOLLOW_INPROGRESS | STATE_FOLLOW_PAUSED) && pSpell->Id == SPELL_REVIVE_RINGO)
                 ClearFaint();

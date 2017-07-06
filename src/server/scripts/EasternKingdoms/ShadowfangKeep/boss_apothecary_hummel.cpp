@@ -16,15 +16,17 @@
  */
 
 #include "ScriptMgr.h"
+#include "GridNotifiersImpl.h"
+#include "Group.h"
+#include "InstanceScript.h"
+#include "LFGMgr.h"
+#include "Map.h"
+#include "MotionMaster.h"
+#include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
-#include "LFGMgr.h"
-#include "Player.h"
-#include "Group.h"
-#include "SpellScript.h"
-#include "SpellAuraEffects.h"
 #include "shadowfang_keep.h"
-#include "GridNotifiersImpl.h"
+#include "SpellScript.h"
 
 enum ApothecarySpells
 {
@@ -75,8 +77,6 @@ enum ApothecaryMisc
 {
     ACTION_START_EVENT          = 1,
     ACTION_START_FIGHT          = 2,
-    FACTION_APOTHECARY_HOSTILE  = 14,
-    FACTION_APOTHECARY_FRIENDLY = 35,
     GOSSIP_OPTION_START         = 0,
     GOSSIP_MENU_HUMMEL          = 10847,
     QUEST_YOUVE_BEEN_SERVED     = 14488,
@@ -117,7 +117,7 @@ class boss_apothecary_hummel : public CreatureScript
                 _deadCount = 0;
                 _isDead = false;
                 events.SetPhase(PHASE_ALL);
-                me->SetFaction(FACTION_APOTHECARY_FRIENDLY);
+                me->SetFaction(FACTION_FRIENDLY);
                 me->SummonCreatureGroup(1);
             }
 
@@ -136,7 +136,7 @@ class boss_apothecary_hummel : public CreatureScript
                     events.ScheduleEvent(EVENT_HUMMEL_SAY_0, Milliseconds(1));
 
                     me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
-                    me->SetFaction(FACTION_APOTHECARY_HOSTILE);
+                    me->SetFaction(FACTION_MONSTER);
                     DummyEntryCheckPredicate pred;
                     summons.DoAction(ACTION_START_EVENT, pred);
                 }
@@ -277,7 +277,7 @@ class boss_apothecary_hummel : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetInstanceAI<boss_apothecary_hummelAI>(creature);
+            return GetShadowfangKeepAI<boss_apothecary_hummelAI>(creature);
         }
 };
 
@@ -290,7 +290,7 @@ struct npc_apothecary_genericAI : public ScriptedAI
         if (action == ACTION_START_EVENT)
         {
             me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
-            me->SetFaction(FACTION_APOTHECARY_HOSTILE);
+            me->SetFaction(FACTION_MONSTER);
             me->GetMotionMaster()->MovePoint(1, _movePos);
         }
         else if (action == ACTION_START_FIGHT)
@@ -327,7 +327,7 @@ class npc_apothecary_frye : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetInstanceAI<npc_apothecary_fryeAI>(creature);
+            return GetShadowfangKeepAI<npc_apothecary_fryeAI>(creature);
         }
 };
 
@@ -390,7 +390,7 @@ class npc_apothecary_baxter : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetInstanceAI<npc_apothecary_baxterAI>(creature);
+            return GetShadowfangKeepAI<npc_apothecary_baxterAI>(creature);
         }
 };
 

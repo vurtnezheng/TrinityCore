@@ -16,18 +16,21 @@
  */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
-#include "Vehicle.h"
-#include "ObjectMgr.h"
-#include "ScriptedEscortAI.h"
 #include "CombatAI.h"
-#include "PassiveAI.h"
-#include "GameObjectAI.h"
-#include "Player.h"
-#include "SpellInfo.h"
 #include "CreatureTextMgr.h"
+#include "GameObject.h"
+#include "GameObjectAI.h"
+#include "Log.h"
+#include "MotionMaster.h"
 #include "MoveSplineInit.h"
+#include "ObjectAccessor.h"
+#include "ObjectMgr.h"
+#include "PassiveAI.h"
+#include "Player.h"
+#include "ScriptedEscortAI.h"
+#include "ScriptedGossip.h"
+#include "SpellInfo.h"
+#include "Vehicle.h"
 
 /*######
 ##Quest 12848
@@ -126,7 +129,7 @@ public:
         {
             Initialize();
             events.Reset();
-            me->SetFaction(7);
+            me->SetFaction(FACTION_CREATURE);
             me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
             me->SetStandState(UNIT_STAND_STATE_KNEEL);
             me->LoadEquipment(0, true);
@@ -191,7 +194,7 @@ public:
                         TC_LOG_ERROR("scripts", "npc_unworthy_initiateAI: unable to find anchor!");
 
                     float dist = 99.0f;
-                    GameObject* prison = NULL;
+                    GameObject* prison = nullptr;
 
                     for (uint8 i = 0; i < 12; ++i)
                     {
@@ -232,7 +235,7 @@ public:
                         wait_timer -= diff;
                     else
                     {
-                        me->SetFaction(14);
+                        me->SetFaction(FACTION_MONSTER);
                         me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                         phase = PHASE_ATTACKING;
 
@@ -327,7 +330,7 @@ class go_acherus_soul_prison : public GameObjectScript
         {
             go_acherus_soul_prisonAI(GameObject* go) : GameObjectAI(go) { }
 
-            bool GossipHello(Player* player, bool /*reportUse*/) override
+            bool GossipHello(Player* player) override
             {
                 if (Creature* anchor = me->FindNearestCreature(29521, 15))
                     if (ObjectGuid prisonerGUID = anchor->AI()->GetGUID())
@@ -475,8 +478,7 @@ enum Says_VBM
 
 enum Misc_VBN
 {
-    QUEST_DEATH_CHALLENGE       = 12733,
-    FACTION_HOSTILE             = 2068
+    QUEST_DEATH_CHALLENGE       = 12733
 };
 
 class npc_death_knight_initiate : public CreatureScript
@@ -513,7 +515,7 @@ public:
             me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNK_15);
         }
 
-        void SpellHit(Unit* pCaster, const SpellInfo* pSpell) override
+        void SpellHit(Unit* pCaster, SpellInfo const* pSpell) override
         {
             if (!m_bIsDuelInProgress && pSpell->Id == SPELL_DUEL)
             {
@@ -554,7 +556,7 @@ public:
                 {
                     if (m_uiDuelTimer <= uiDiff)
                     {
-                        me->SetFaction(FACTION_HOSTILE);
+                        me->SetFaction(FACTION_UNDEAD_SCOURGE_2);
 
                         if (Unit* unit = ObjectAccessor::GetUnit(*me, m_uiDuelerGUID))
                             AttackStart(unit);
@@ -768,7 +770,7 @@ public:
             return false;
         }
 
-        void SpellHit(Unit* caster, const SpellInfo* spell) override
+        void SpellHit(Unit* caster, SpellInfo const* spell) override
         {
             if (spell->Id == SPELL_DELIVER_STOLEN_HORSE)
             {
@@ -780,7 +782,7 @@ public:
                         {
                             charmer->RemoveAurasDueToSpell(SPELL_EFFECT_STOLEN_HORSE);
                             caster->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_SPELLCLICK);
-                            caster->SetFaction(35);
+                            caster->SetFaction(FACTION_FRIENDLY);
                             DoCast(caster, SPELL_CALL_DARK_RIDER, true);
                             if (Creature* Dark_Rider = me->FindNearestCreature(NPC_DARK_RIDER_OF_ACHERUS, 15))
                                 ENSURE_AI(npc_dark_rider_of_acherus::npc_dark_rider_of_acherusAI, Dark_Rider->AI())->InitDespawnHorse(caster);
@@ -1069,7 +1071,7 @@ class npc_scarlet_miner_cart : public CreatureScript
                 if (apply)
                 {
                     _playerGUID = who->GetGUID();
-                    me->CastSpell((Unit*)NULL, SPELL_SUMMON_MINER, true);
+                    me->CastSpell((Unit*)nullptr, SPELL_SUMMON_MINER, true);
                 }
                 else
                 {

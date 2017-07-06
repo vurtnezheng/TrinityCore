@@ -17,12 +17,15 @@
  */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedEscortAI.h"
-#include "Player.h"
-#include "SpellScript.h"
-#include "CreatureTextMgr.h"
 #include "CombatAI.h"
+#include "CreatureTextMgr.h"
+#include "MotionMaster.h"
+#include "ObjectAccessor.h"
+#include "Player.h"
+#include "ScriptedEscortAI.h"
+#include "SpellInfo.h"
+#include "SpellScript.h"
+#include "TemporarySummon.h"
 
 /*######
 ## Quest 12027: Mr. Floppy's Perilous Adventure
@@ -102,7 +105,7 @@ public:
                     Talk(SAY_WORGRAGGRO3);
                     if (Creature* RWORG = me->SummonCreature(NPC_RAVENOUS_WORG, me->GetPositionX()+10, me->GetPositionY()+8, me->GetPositionZ()+2, 3.229f, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 120000))
                     {
-                        RWORG->SetFaction(35);
+                        RWORG->SetFaction(FACTION_FRIENDLY);
                         _RavenousworgGUID = RWORG->GetGUID();
                     }
                     break;
@@ -135,7 +138,7 @@ public:
                         {
                             RWORG->Kill(Mrfloppy);
                             Mrfloppy->ExitVehicle();
-                            RWORG->SetFaction(14);
+                            RWORG->SetFaction(FACTION_MONSTER);
                             RWORG->GetMotionMaster()->MovePoint(0, RWORG->GetPositionX()+10, RWORG->GetPositionY()+80, RWORG->GetPositionZ());
                             Talk(SAY_VICTORY2);
                         }
@@ -300,7 +303,7 @@ public:
                 _gender = Data;
         }
 
-        void SpellHit(Unit* Caster, const SpellInfo* Spell) override
+        void SpellHit(Unit* Caster, SpellInfo const* Spell) override
         {
              if (Spell->Id == SPELL_OUTHOUSE_GROANS)
              {
@@ -495,7 +498,7 @@ public:
                 me->DespawnOrUnsummon(_despawnTimer);
         }
 
-        void SpellHit(Unit* caster, const SpellInfo* spell) override
+        void SpellHit(Unit* caster, SpellInfo const* spell) override
         {
             if (spell->Id == SPELL_RENEW_SKIRMISHER && caster->GetTypeId() == TYPEID_PLAYER
                 && caster->ToPlayer()->GetQuestStatus(QUEST_OVERWHELMED) == QUEST_STATUS_INCOMPLETE)
@@ -953,9 +956,7 @@ public:
 
         bool Validate(SpellInfo const* /*spellInfo*/) override
         {
-            if (!sSpellMgr->GetSpellInfo(SPELL_WARHEAD_Z_CHECK) || !sSpellMgr->GetSpellInfo(SPELL_WARHEAD_SEEKING_LUMBERSHIP) || !sSpellMgr->GetSpellInfo(SPELL_WARHEAD_FUSE))
-                return false;
-            return true;
+            return ValidateSpellInfo({ SPELL_WARHEAD_Z_CHECK, SPELL_WARHEAD_SEEKING_LUMBERSHIP, SPELL_WARHEAD_FUSE });
         }
 
         void HandleDummy(SpellEffIndex /*effIndex*/)
@@ -997,9 +998,7 @@ public:
 
         bool Validate(SpellInfo const* /*spellInfo*/) override
         {
-            if (!sSpellMgr->GetSpellInfo(SPELL_PARACHUTE) || !sSpellMgr->GetSpellInfo(SPELL_TORPEDO_EXPLOSION))
-                return false;
-            return true;
+            return ValidateSpellInfo({ SPELL_PARACHUTE, SPELL_TORPEDO_EXPLOSION });
         }
 
         void HandleDummy(SpellEffIndex /*effIndex*/)

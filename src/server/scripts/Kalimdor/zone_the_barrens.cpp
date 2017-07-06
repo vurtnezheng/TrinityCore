@@ -33,11 +33,13 @@ npc_wizzlecrank_shredder
 EndContentData */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
-#include "ScriptedEscortAI.h"
+#include "MotionMaster.h"
+#include "ObjectAccessor.h"
 #include "Player.h"
+#include "ScriptedEscortAI.h"
+#include "ScriptedGossip.h"
 #include "SpellInfo.h"
+#include "TemporarySummon.h"
 
 /*######
 ## npc_beaten_corpse
@@ -91,8 +93,7 @@ enum Gilthares
     SAY_GIL_FREED               = 7,
 
     QUEST_FREE_FROM_HOLD        = 898,
-    AREA_MERCHANT_COAST         = 391,
-    FACTION_ESCORTEE            = 232                       //guessed, possible not needed for this quest
+    AREA_MERCHANT_COAST         = 391
 };
 
 class npc_gilthares : public CreatureScript
@@ -154,7 +155,7 @@ public:
         {
             if (quest->GetQuestId() == QUEST_FREE_FROM_HOLD)
             {
-                me->SetFaction(FACTION_ESCORTEE);
+                me->SetFaction(FACTION_ESCORTEE_H_NEUTRAL_ACTIVE);
                 me->SetStandState(UNIT_STAND_STATE_STAND);
 
                 Talk(SAY_GIL_START, player);
@@ -219,7 +220,7 @@ public:
         void DoFriend()
         {
             me->RemoveAllAuras();
-            me->DeleteThreatList();
+            me->GetThreatManager().ClearAllThreat();
             me->CombatStop(true);
 
             me->StopMoving();
@@ -229,7 +230,7 @@ public:
             me->HandleEmoteCommand(EMOTE_ONESHOT_SALUTE);
         }
 
-        void SpellHit(Unit* /*caster*/, const SpellInfo* spell) override
+        void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
         {
             if (spell->Id == SPELL_FLARE || spell->Id == SPELL_FOLLY)
             {
@@ -371,7 +372,7 @@ public:
         {
             if (EventInProgress)
             {
-                Player* warrior = NULL;
+                Player* warrior = nullptr;
 
                 if (PlayerGUID)
                     warrior = ObjectAccessor::GetPlayer(*me, PlayerGUID);

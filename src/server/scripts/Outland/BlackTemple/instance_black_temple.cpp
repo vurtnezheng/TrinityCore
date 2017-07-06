@@ -16,8 +16,13 @@
  */
 
 #include "ScriptMgr.h"
-#include "InstanceScript.h"
+#include "AreaBoundary.h"
 #include "black_temple.h"
+#include "Creature.h"
+#include "CreatureAI.h"
+#include "GameObject.h"
+#include "InstanceScript.h"
+#include "Map.h"
 
 DoorData const doorData[] =
 {
@@ -123,7 +128,7 @@ class instance_black_temple : public InstanceMapScript
                     case NPC_STORM_FURY:
                         AshtongueGUIDs.emplace_back(creature->GetGUID());
                         if (GetBossState(DATA_SHADE_OF_AKAMA) == DONE)
-                            creature->SetFaction(ASHTONGUE_FACTION_FRIEND);
+                            creature->SetFaction(FACTION_ASHTONGUE_DEATHSWORN);
                         break;
                     default:
                         break;
@@ -170,7 +175,7 @@ class instance_black_temple : public InstanceMapScript
                         if (state == DONE)
                             for (ObjectGuid ashtongueGuid : AshtongueGUIDs)
                                 if (Creature* ashtongue = instance->GetCreature(ashtongueGuid))
-                                    ashtongue->SetFaction(ASHTONGUE_FACTION_FRIEND);
+                                    ashtongue->SetFaction(FACTION_ASHTONGUE_DEATHSWORN);
                         // no break
                     case DATA_TERON_GOREFIEND:
                     case DATA_GURTOGG_BLOODBOIL:

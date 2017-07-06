@@ -18,6 +18,8 @@
 #ifndef BLACK_TEMPLE_H_
 #define BLACK_TEMPLE_H_
 
+#include "CreatureAIImpl.h"
+
 #define BTScriptName "instance_black_temple"
 #define DataHeader   "BT"
 
@@ -131,7 +133,6 @@ enum BTGameObjectIds
 
 enum BlackTempleMisc
 {
-    ASHTONGUE_FACTION_FRIEND        = 1820,
     AKAMA_FACTION_COMBAT            = 1868,
     AKAMA_INTRO                     = 1,
     AKAMA_FIGHT                     = 2,
@@ -139,8 +140,8 @@ enum BlackTempleMisc
     ACTION_OPEN_DOOR                = 4
 };
 
-template<class AI, class T>
-AI* GetBlackTempleAI(T* obj)
+template <class AI, class T>
+inline AI* GetBlackTempleAI(T* obj)
 {
     return GetInstanceAI<AI>(obj, BTScriptName);
 }

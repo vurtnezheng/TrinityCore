@@ -165,8 +165,7 @@ public:
 enum Cooshhooosh
 {
     SPELL_LIGHTNING_BOLT    = 9532,
-    QUEST_CRACK_SKULLS      = 10009,
-    FACTION_HOSTILE_CO      = 45
+    QUEST_CRACK_SKULLS      = 10009
 };
 
 class npc_cooshcoosh : public CreatureScript
@@ -229,7 +228,7 @@ public:
             if (action == GOSSIP_ACTION_INFO_DEF)
             {
                 CloseGossipMenuFor(player);
-                me->SetFaction(FACTION_HOSTILE_CO);
+                me->SetFaction(FACTION_OGRE);
                 AttackStart(player);
             }
             return true;
@@ -288,13 +287,13 @@ public:
                     {
                         ItemPosCountVec dest;
                         uint32 itemId = 24573;
-                        InventoryResult msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, 1, NULL);
+                        InventoryResult msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, itemId, 1, nullptr);
                         if (msg == EQUIP_ERR_OK)
                         {
                             player->StoreNewItem(dest, itemId, true);
                         }
                         else
-                            player->SendEquipError(msg, NULL, NULL, itemId);
+                            player->SendEquipError(msg, nullptr, nullptr, itemId);
                     }
                     SendGossipMenuFor(player, 9231, me->GetGUID());
                     break;

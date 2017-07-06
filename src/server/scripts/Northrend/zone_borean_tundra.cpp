@@ -34,15 +34,19 @@ npc_lurgglbr
 EndContentData */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
+#include "GameObject.h"
+#include "MotionMaster.h"
+#include "ObjectAccessor.h"
+#include "ObjectMgr.h"
+#include "Player.h"
 #include "ScriptedEscortAI.h"
 #include "ScriptedFollowerAI.h"
-#include "Player.h"
-#include "SpellInfo.h"
-#include "WorldSession.h"
-#include "SpellScript.h"
+#include "ScriptedGossip.h"
 #include "SpellAuraEffects.h"
+#include "SpellInfo.h"
+#include "SpellScript.h"
+#include "TemporarySummon.h"
+#include "WorldSession.h"
 
 /*######
 ## npc_sinkhole_kill_credit
@@ -87,7 +91,7 @@ public:
             Initialize();
         }
 
-        void SpellHit(Unit* caster, const SpellInfo* spell) override
+        void SpellHit(Unit* caster, SpellInfo const* spell) override
         {
             if (phase || spell->Id != SPELL_SET_CART)
                 return;
@@ -115,7 +119,7 @@ public:
                         DoCast(me, SPELL_EXPLODE_CART, true);
                         DoCast(me, SPELL_SUMMON_CART, true);
                         if (GameObject* cart = me->FindNearestGameObject(GO_EXPLOSIVES_CART, 3.0f))
-                            cart->SetFaction(14);
+                            cart->SetFaction(FACTION_MONSTER);
                         phaseTimer = 3000;
                         phase = 2;
                         break;
@@ -463,7 +467,7 @@ public:
 
         void JustDied(Unit* /*killer*/) override
         {
-            if (GameObject* go_caribou = me->GetMap()->GetGameObject(go_caribouGUID))
+            if (GameObject* go_caribou = ObjectAccessor::GetGameObject(*me, go_caribouGUID))
                 go_caribou->SetLootState(GO_JUST_DEACTIVATED);
 
             if (TempSummon* summon = me->ToTempSummon())
@@ -472,7 +476,7 @@ public:
                         if (Player* player = temp->ToPlayer())
                             player->KilledMonsterCredit(me->GetEntry());
 
-            if (GameObject* go_caribou = me->GetMap()->GetGameObject(go_caribouGUID))
+            if (GameObject* go_caribou = ObjectAccessor::GetGameObject(*me, go_caribouGUID))
                 go_caribou->SetGoState(GO_STATE_READY);
         }
 
@@ -516,7 +520,7 @@ public:
                         break;
                     case 7:
                     {
-                        GameObject* go_caribou = NULL;
+                        GameObject* go_caribou = nullptr;
                         for (uint8 i = 0; i < CaribouTrapsNum; ++i)
                         {
                             go_caribou = me->FindNearestGameObject(CaribouTraps[i], 5.0f);
@@ -555,9 +559,6 @@ enum Lurgglbr
     QUEST_ESCAPE_WINTERFIN_CAVERNS      = 11570,
 
     GO_CAGE                             = 187369,
-
-    FACTION_ESCORTEE_A                  = 774,
-    FACTION_ESCORTEE_H                  = 775,
 
     SAY_START_1                         = 0,
     SAY_START_2                         = 1,
@@ -680,11 +681,11 @@ public:
                 switch (player->GetTeam())
                 {
                     case ALLIANCE:
-                        me->SetFaction(FACTION_ESCORTEE_A);
+                        me->SetFaction(FACTION_ESCORTEE_A_PASSIVE);
                         break;
                     default:
                     case HORDE:
-                        me->SetFaction(FACTION_ESCORTEE_H);
+                        me->SetFaction(FACTION_ESCORTEE_H_PASSIVE);
                         break;
                 }
             }
@@ -720,7 +721,7 @@ public:
             Creature* owner = GetOwner()->ToCreature();
             owner->RemoveAllAurasExceptType(SPELL_AURA_DUMMY);
             owner->CombatStop(true);
-            owner->DeleteThreatList();
+            owner->GetThreatManager().ClearAllThreat();
             owner->GetMotionMaster()->Clear(false);
             owner->GetMotionMaster()->MoveFollow(GetCaster(), 4.0f, 0.0f);
             owner->CastSpell(owner, SPELL_SUBDUED, true);
@@ -1460,7 +1461,7 @@ public:
                 AttackStart(who);
         }
 
-        void SpellHit(Unit* pCaster, const SpellInfo* pSpell) override
+        void SpellHit(Unit* pCaster, SpellInfo const* pSpell) override
         {
             if (pSpell->Id == SPELL_ARCANE_CHAINS && pCaster->GetTypeId() == TYPEID_PLAYER && !HealthAbovePct(50) && !bEnslaved)
             {
@@ -1570,7 +1571,7 @@ public:
         {
         }
 
-        void SpellHit(Unit* unit, const SpellInfo* spell) override
+        void SpellHit(Unit* unit, SpellInfo const* spell) override
         {
             if (spell->Id == SPELL_NEURAL_NEEDLE && unit->GetTypeId() == TYPEID_PLAYER)
                 if (Player* player = unit->ToPlayer())
@@ -1648,7 +1649,7 @@ public:
 
         void JustDied(Unit* /*killer*/) override
         {
-            if (Player* player=GetPlayerForEscort())
+            if (Player* player = GetPlayerForEscort())
                 player->FailQuest(QUEST_ESCAPING_THE_MIST);
         }
 
@@ -1689,10 +1690,10 @@ public:
                 switch (player->GetTeam())
                 {
                     case ALLIANCE:
-                        me->SetFaction(FACTION_ESCORTEE_A);
+                        me->SetFaction(FACTION_ESCORTEE_A_PASSIVE);
                         break;
                     case HORDE:
-                        me->SetFaction(FACTION_ESCORTEE_H);
+                        me->SetFaction(FACTION_ESCORTEE_H_PASSIVE);
                         break;
                 }
                 me->SetStandState(UNIT_STAND_STATE_STAND);
@@ -1863,7 +1864,7 @@ public:
         {
             Initialize();
 
-            GameObject* pTrap = NULL;
+            GameObject* pTrap = nullptr;
             for (uint8 i = 0; i < MammothTrapsNum; ++i)
             {
                 pTrap = me->FindNearestGameObject(MammothTraps[i], 11.0f);
@@ -1902,7 +1903,7 @@ public:
 
             me->DisappearAndDie();
 
-            GameObject* pTrap = NULL;
+            GameObject* pTrap = nullptr;
             for (uint8 i = 0; i < MammothTrapsNum; ++i)
             {
                 pTrap = me->FindNearestGameObject(MammothTraps[i], 11.0f);
@@ -2163,9 +2164,9 @@ enum HiddenCultist
     SAY_HIDDEN_CULTIST_4                        = 3
 };
 
-const char* GOSSIP_ITEM_TOM_HEGGER = "What do you know about the Cult of the Damned?";
-const char* GOSSIP_ITEM_GUARD_MITCHELLS = "How long have you worked for the Cult of the Damned?";
-const char* GOSSIP_ITEM_SALTY_JOHN_THORPE = "I have a reason to believe you're involved in the cultist activity";
+char const* GOSSIP_ITEM_TOM_HEGGER = "What do you know about the Cult of the Damned?";
+char const* GOSSIP_ITEM_GUARD_MITCHELLS = "How long have you worked for the Cult of the Damned?";
+char const* GOSSIP_ITEM_SALTY_JOHN_THORPE = "I have a reason to believe you're involved in the cultist activity";
 
 class npc_hidden_cultist : public CreatureScript
 {
@@ -2293,7 +2294,7 @@ public:
         bool GossipHello(Player* player) override
         {
             uint32 uiGossipText = 0;
-            const char* charGossipItem;
+            char const* charGossipItem;
 
             switch (me->GetEntry())
             {
@@ -2368,7 +2369,7 @@ public:
         {
             if (GetTarget()->isDead())
                 if (Unit* caster = GetCaster())
-                    caster->CastSpell(NULL, SPELL_WINDSOUL_CREDT);
+                    caster->CastSpell(nullptr, SPELL_WINDSOUL_CREDT);
         }
 
         void Register() override

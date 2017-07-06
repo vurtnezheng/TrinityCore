@@ -15,15 +15,19 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ObjectMgr.h"
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "PassiveAI.h"
-#include "ScriptedGossip.h"
-#include "GridNotifiers.h"
 #include "black_temple.h"
-#include "SpellScript.h"
+#include "GridNotifiers.h"
+#include "InstanceScript.h"
+#include "Map.h"
+#include "MotionMaster.h"
+#include "ObjectAccessor.h"
+#include "PassiveAI.h"
+#include "ScriptedCreature.h"
+#include "ScriptedGossip.h"
 #include "SpellAuraEffects.h"
+#include "SpellScript.h"
+#include "TemporarySummon.h"
 
 enum Says
 {
@@ -286,7 +290,7 @@ public:
 
         void EnterEvadeModeIfNeeded()
         {
-            Map::PlayerList const &players = me->GetMap()->GetPlayers();
+            Map::PlayerList const& players = me->GetMap()->GetPlayers();
             for (Map::PlayerList::const_iterator i = players.begin(); i != players.end(); ++i)
                 if (Player* player = i->GetSource())
                     if (player->IsAlive() && !player->IsGameMaster() && CheckBoundary(player))
@@ -379,7 +383,7 @@ public:
         void Reset() override
         {
             Initialize();
-            me->SetFaction(ASHTONGUE_FACTION_FRIEND);
+            me->SetFaction(FACTION_ASHTONGUE_DEATHSWORN);
             DoCastSelf(SPELL_STEALTH);
 
             if (_instance->GetBossState(DATA_SHADE_OF_AKAMA) != DONE)
@@ -425,7 +429,7 @@ public:
             {
                 _isInCombat = false;
                 me->CombatStop(true);
-                me->SetFaction(ASHTONGUE_FACTION_FRIEND);
+                me->SetFaction(FACTION_ASHTONGUE_DEATHSWORN);
                 me->SetWalk(true);
                 _events.Reset();
                 me->GetMotionMaster()->MovePoint(AKAMA_INTRO_WAYPOINT, AkamaWP[1]);
@@ -479,7 +483,7 @@ public:
                     case EVENT_SHADE_CHANNEL:
                         me->SetFacingTo(FACE_THE_PLATFORM);
                         DoCastSelf(SPELL_AKAMA_SOUL_CHANNEL);
-                        me->SetFaction(AKAMA_FACTION_COMBAT);
+                        me->SetFaction(FACTION_MONSTER_SPAR_BUDDY);
                         _events.ScheduleEvent(EVENT_FIXATE, Seconds(5));
                         break;
                     case EVENT_FIXATE:
@@ -527,7 +531,7 @@ public:
                 }
             }
 
-            if (me->GetFaction() == AKAMA_FACTION_COMBAT)
+            if (me->GetFaction() == FACTION_MONSTER_SPAR_BUDDY)
             {
                 if (!UpdateVictim())
                     return;
@@ -1166,7 +1170,7 @@ public:
                     Talk(SAY_BROKEN_SPECIAL);
                     break;
                 case ACTION_BROKEN_HAIL:
-                    me->SetFaction(ASHTONGUE_FACTION_FRIEND);
+                    me->SetFaction(FACTION_ASHTONGUE_DEATHSWORN);
                     Talk(SAY_BROKEN_HAIL);
                     break;
                 case ACTION_BROKEN_EMOTE:
@@ -1200,9 +1204,7 @@ public:
 
         bool Validate(SpellInfo const* /*spell*/) override
         {
-            if (!sSpellMgr->GetSpellInfo(SPELL_SHADE_SOUL_CHANNEL_2))
-                return false;
-            return true;
+            return ValidateSpellInfo({ SPELL_SHADE_SOUL_CHANNEL_2 });
         }
 
         void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)

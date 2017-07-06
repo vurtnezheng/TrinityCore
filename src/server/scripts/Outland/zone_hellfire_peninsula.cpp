@@ -31,10 +31,12 @@ npc_fel_guard_hound
 EndContentData */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
-#include "ScriptedEscortAI.h"
+#include "Log.h"
+#include "MotionMaster.h"
+#include "ObjectAccessor.h"
 #include "Player.h"
+#include "ScriptedEscortAI.h"
+#include "ScriptedGossip.h"
 #include "WorldSession.h"
 
 /*######
@@ -45,8 +47,6 @@ enum Aeranas
 {
     SAY_SUMMON                  = 0,
     SAY_FREE                    = 1,
-    FACTION_HOSTILE             = 16,
-    FACTION_FRIENDLY            = 35,
     SPELL_ENVELOPING_WINDS      = 15535,
     SPELL_SHOCK                 = 12553
 };
@@ -86,7 +86,7 @@ public:
             {
                 if (faction_Timer <= diff)
                 {
-                    me->SetFaction(FACTION_HOSTILE);
+                    me->SetFaction(FACTION_MONSTER_2);
                     faction_Timer = 0;
                 } else faction_Timer -= diff;
             }
@@ -99,7 +99,7 @@ public:
                 me->SetFaction(FACTION_FRIENDLY);
                 me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_QUESTGIVER);
                 me->RemoveAllAuras();
-                me->DeleteThreatList();
+                me->GetThreatManager().ClearAllThreat();
                 me->CombatStop(true);
                 Talk(SAY_FREE);
                 return;
@@ -250,8 +250,7 @@ enum WoundedBloodElf
     SAY_ELF_AGGRO               = 5,
     QUEST_ROAD_TO_FALCON_WATCH  = 9375,
     NPC_HAALESHI_WINDWALKER     = 16966,
-    NPC_HAALESHI_TALONGUARD     = 16967,
-    FACTION_FALCON_WATCH_QUEST  = 775
+    NPC_HAALESHI_TALONGUARD     = 16967
 };
 
 class npc_wounded_blood_elf : public CreatureScript
@@ -280,7 +279,7 @@ public:
         {
             if (quest->GetQuestId() == QUEST_ROAD_TO_FALCON_WATCH)
             {
-                me->SetFaction(FACTION_FALCON_WATCH_QUEST);
+                me->SetFaction(FACTION_ESCORTEE_H_PASSIVE);
                 npc_escortAI::Start(true, false, player->GetGUID());
             }
         }
@@ -972,7 +971,7 @@ public:
                 _events.Reset();
                 me->RestoreFaction();
                 me->RemoveAllAuras();
-                me->DeleteThreatList();
+                me->GetThreatManager().ClearAllThreat();
                 me->CombatStop(true);
                 me->SetFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_QUESTGIVER);
                 me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
@@ -996,8 +995,8 @@ public:
                     break;
                 case EVENT_ATTACK:
                     me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
-                    me->SetFaction(FACTION_HOSTILE);
-                    me->CombatStart(ObjectAccessor::GetPlayer(*me, _playerGUID));
+                    me->SetFaction(FACTION_MONSTER_2);
+                    me->EngageWithTarget(ObjectAccessor::GetPlayer(*me, _playerGUID));
                     _events.ScheduleEvent(EVENT_FIREBALL, 1);
                     _events.ScheduleEvent(EVENT_FROSTNOVA, Seconds(5));
                     break;

@@ -17,10 +17,11 @@
  */
 
 #include "ScriptMgr.h"
+#include "blackrock_depths.h"
+#include "InstanceScript.h"
+#include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
-#include "blackrock_depths.h"
-#include "Player.h"
 
 enum Spells
 {
@@ -102,7 +103,7 @@ class boss_gloomrel : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetInstanceAI<boss_gloomrelAI>(creature);
+            return GetBlackrockDepthsAI<boss_gloomrelAI>(creature);
         }
 };
 
@@ -149,7 +150,7 @@ class boss_doomrel : public CreatureScript
             {
                 Initialize();
 
-                me->SetFaction(FACTION_FRIEND);
+                me->SetFaction(FACTION_FRIENDLY);
 
                 // was set before event start, so set again
                 me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
@@ -239,7 +240,7 @@ class boss_doomrel : public CreatureScript
                     case GOSSIP_ACTION_INFO_DEF + 2:
                         CloseGossipMenuFor(player);
                         //start event here
-                        me->SetFaction(FACTION_HOSTILE);
+                        me->SetFaction(FACTION_DARK_IRON_DWARVES);
                         me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                         me->AI()->AttackStart(player);
 
@@ -265,7 +266,7 @@ class boss_doomrel : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetInstanceAI<boss_doomrelAI>(creature);
+            return GetBlackrockDepthsAI<boss_doomrelAI>(creature);
         }
 };
 
