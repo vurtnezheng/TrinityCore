@@ -125,7 +125,7 @@ void WorldSession::HandleLfgJoinOpcode(WorldPacket& recvData)
     TC_LOG_DEBUG("lfg", "CMSG_DF_JOIN %s roles: %u, Dungeons: %u, Comment: %s",
         GetPlayerInfo().c_str(), roles, uint8(newDungeons.size()), comment.c_str());
 
-    sLFGMgr->JoinLfg(GetPlayer(), uint8(roles), newDungeons, comment);
+    sLFGMgr->JoinLfg(GetPlayer(), uint8(roles), newDungeons);
 }
 
 void WorldSession::HandleLfgLeaveOpcode(WorldPacket& recvData)
@@ -237,17 +237,6 @@ void WorldSession::HandleLfgSetRolesOpcode(WorldPacket& recvData)
     TC_LOG_DEBUG("lfg", "CMSG_DF_SET_ROLES: Group %s, Player %s, Roles: %u",
         gguid.ToString().c_str(), GetPlayerInfo().c_str(), roles);
     sLFGMgr->UpdateRoleCheck(gguid, guid, roles);
-}
-
-void WorldSession::HandleLfgSetCommentOpcode(WorldPacket&  recvData)
-{
-    uint32 length = recvData.ReadBits(9);
-    std::string comment = recvData.ReadString(length);
-
-    TC_LOG_DEBUG("lfg", "CMSG_LFG_SET_COMMENT %s comment: %s",
-        GetPlayerInfo().c_str(), comment.c_str());
-
-    sLFGMgr->SetComment(GetPlayer()->GetGUID(), comment);
 }
 
 void WorldSession::HandleLfgSetBootVoteOpcode(WorldPacket& recvData)
@@ -386,24 +375,6 @@ void WorldSession::SendLfgPartyLockInfo()
     SendPacket(&data);
 }
 
-void WorldSession::HandleLfrJoinOpcode(WorldPacket& recvData)
-{
-    uint32 entry;                                          // Raid id to search
-    recvData >> entry;
-    TC_LOG_DEBUG("lfg", "CMSG_LFG_LFR_JOIN %s dungeon entry: %u",
-        GetPlayerInfo().c_str(), entry);
-    //SendLfrUpdateListOpcode(entry);
-}
-
-void WorldSession::HandleLfrLeaveOpcode(WorldPacket& recvData)
-{
-    uint32 dungeonId;                                      // Raid id queue to leave
-    recvData >> dungeonId;
-    TC_LOG_DEBUG("lfg", "CMSG_LFG_LFR_LEAVE %s dungeonId: %u",
-        GetPlayerInfo().c_str(), dungeonId);
-    //sLFGMgr->LeaveLfr(GetPlayer(), dungeonId);
-}
-
 void WorldSession::HandleDFGetJoinStatus(WorldPacket& /*recvData*/)
 {
     TC_LOG_DEBUG("lfg", "CMSG_DF_GET_JOIN_STATUS %s", GetPlayerInfo().c_str());
@@ -461,13 +432,12 @@ void WorldSession::SendLfgUpdateStatus(lfg::LfgUpdateData const& updateData, boo
     TC_LOG_DEBUG("lfg", "SMSG_LFG_UPDATE_STATUS %s updatetype: %u, party %s",
         GetPlayerInfo().c_str(), updateData.updateType, party ? "true" : "false");
 
-    WorldPacket data(SMSG_LFG_UPDATE_STATUS, 1 + 8 + 3 + 2 + 1 + updateData.comment.length() + 4 + 4 + 1 + 1 + 1 + 4 + size);
+    WorldPacket data(SMSG_LFG_UPDATE_STATUS, 1 + 8 + 3 + 2 + 1 + 4 + 4 + 1 + 1 + 1 + 4 + size);
     data.WriteBit(guid[1] != 0);
     data.WriteBit(party);
     data.WriteBits(size, 24);
     data.WriteBit(guid[6] != 0);
     data.WriteBit(size > 0);                               // Extra info
-    data.WriteBits(updateData.comment.length(), 9);
     data.WriteBit(guid[4] != 0);
     data.WriteBit(guid[7] != 0);
     data.WriteBit(guid[2] != 0);
@@ -478,7 +448,6 @@ void WorldSession::SendLfgUpdateStatus(lfg::LfgUpdateData const& updateData, boo
     data.WriteBit(queued);                                 // Join the queue
 
     data << uint8(updateData.updateType);                  // Lfg Update type
-    data.WriteString(updateData.comment);
     data << uint32(queueId);                               // Queue Id
     data << uint32(joinTime);                              // Join date
     data.WriteByteSeq(guid[6]);
