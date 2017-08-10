@@ -990,8 +990,9 @@ void Spell::SelectImplicitChannelTargets(SpellEffIndex effIndex, SpellImplicitTa
                 WorldObject* target = ObjectAccessor::GetUnit(*m_caster, channelTarget);
                 CallScriptObjectTargetSelectHandlers(target, effIndex, targetType);
                 // unit target may be no longer avalible - teleported out of map for example
-                if (target && target->GetTypeId() == TYPEID_UNIT)
-                    AddUnitTarget(target->ToUnit(), 1 << effIndex);
+                Unit* unitTarget = target ? target->ToUnit() : nullptr;
+                if (unitTarget)
+                    AddUnitTarget(unitTarget, 1 << effIndex);
                 else
                     TC_LOG_DEBUG("spells", "SPELL: cannot find channel spell target for spell ID %u, effect %u", m_spellInfo->Id, effIndex);
             }
@@ -1159,13 +1160,13 @@ void Spell::SelectImplicitConeTargets(SpellEffIndex effIndex, SpellImplicitTarge
     SpellEffectInfo const* effect = GetEffect(effIndex);
     if (!effect)
         return;
+
     ConditionContainer* condList = effect->ImplicitTargetConditions;
-    float coneAngle = float(M_PI) / 2;
     float radius = effect->CalcRadius(m_caster) * m_spellValue->RadiusMod;
 
     if (uint32 containerTypeMask = GetSearcherTypeMask(objectType, condList))
     {
-        Trinity::WorldObjectSpellConeTargetCheck check(coneAngle, radius, m_caster, m_spellInfo, selectionType, condList);
+        Trinity::WorldObjectSpellConeTargetCheck check(DegToRad(m_spellInfo->ConeAngle), radius, m_caster, m_spellInfo, selectionType, condList);
         Trinity::WorldObjectListSearcher<Trinity::WorldObjectSpellConeTargetCheck> searcher(m_caster, targets, check, containerTypeMask);
         SearchTargets<Trinity::WorldObjectListSearcher<Trinity::WorldObjectSpellConeTargetCheck> >(searcher, containerTypeMask, m_caster, m_caster, radius);
 
@@ -2121,7 +2122,7 @@ void Spell::AddUnitTarget(Unit* target, uint32 effectMask, bool checkIfValid /*=
             if (m_auraScaleMask && ihit->effectMask == m_auraScaleMask && m_caster != target)
             {
                 SpellInfo const* auraSpell = m_spellInfo->GetFirstRankSpell();
-                if (uint32(target->getLevel() + 10) >= auraSpell->SpellLevel)
+                if (uint32(target->GetLevelForTarget(m_caster) + 10) >= auraSpell->SpellLevel)
                     ihit->scaleAura = true;
             }
             return;
@@ -2142,7 +2143,7 @@ void Spell::AddUnitTarget(Unit* target, uint32 effectMask, bool checkIfValid /*=
     if (m_auraScaleMask && targetInfo.effectMask == m_auraScaleMask && m_caster != target)
     {
         SpellInfo const* auraSpell = m_spellInfo->GetFirstRankSpell();
-        if (uint32(target->getLevel() + 10) >= auraSpell->SpellLevel)
+        if (uint32(target->GetLevelForTarget(m_caster) + 10) >= auraSpell->SpellLevel)
             targetInfo.scaleAura = true;
     }
 
@@ -5301,7 +5302,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                 uint32 skill = creature->GetCreatureTemplate()->GetRequiredLootSkill();
 
                 int32 skillValue = m_caster->ToPlayer()->GetSkillValue(skill);
-                int32 TargetLevel = m_targets.GetUnitTarget()->getLevel();
+                int32 TargetLevel = m_targets.GetUnitTarget()->GetLevelForTarget(m_caster);
                 int32 ReqValue = (skillValue < 100 ? (TargetLevel-10) * 10 : TargetLevel * 5);
                 if (ReqValue > skillValue)
                     return SPELL_FAILED_LOW_CASTLEVEL;
@@ -5613,7 +5614,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                         return SPELL_FAILED_TARGET_IS_PLAYER_CONTROLLED;
 
                     int32 value = CalculateDamage(effect->EffectIndex, target);
-                    if (value && int32(target->getLevel()) > value)
+                    if (value && int32(target->GetLevelForTarget(m_caster)) > value)
                         return SPELL_FAILED_HIGHLEVEL;
                 }
 
@@ -6543,18 +6544,18 @@ SpellCastResult Spell::CheckItems()
                 }
                 break;
             }
-            case SPELL_EFFECT_CREATE_MANA_GEM:
+            case SPELL_EFFECT_RECHARGE_ITEM:
             {
-                 uint32 item_id = effect->ItemType;
-                 ItemTemplate const* pProto = sObjectMgr->GetItemTemplate(item_id);
+                 uint32 itemId = effect->ItemType;
 
-                 if (!pProto)
+                 ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId);
+                 if (!proto)
                      return SPELL_FAILED_ITEM_AT_MAX_CHARGES;
 
-                 if (Item* pitem = player->GetItemByEntry(item_id))
+                 if (Item* item = player->GetItemByEntry(itemId))
                  {
-                     for (uint8 x = 0; x < pProto->Effects.size() && x < 5; ++x)
-                         if (pProto->Effects[x]->Charges != 0 && pitem->GetSpellCharges(x) == pProto->Effects[x]->Charges)
+                     for (uint8 x = 0; x < proto->Effects.size() && x < 5; ++x)
+                         if (proto->Effects[x]->Charges != 0 && item->GetSpellCharges(x) == proto->Effects[x]->Charges)
                              return SPELL_FAILED_ITEM_AT_MAX_CHARGES;
                  }
                  break;
@@ -6772,7 +6773,7 @@ bool Spell::CheckEffectTarget(Unit const* target, SpellEffectInfo const* effect,
             if (!target->GetCharmerGUID().IsEmpty())
                 return false;
             if (int32 value = CalculateDamage(effect->EffectIndex, target))
-                if ((int32)target->getLevel() > value)
+                if ((int32)target->GetLevelForTarget(m_caster) > value)
                     return false;
             break;
         default:
@@ -7724,7 +7725,9 @@ bool WorldObjectSpellConeTargetCheck::operator()(WorldObject* target)
     else
     {
         if (!_caster->IsWithinBoundaryRadius(target->ToUnit()))
-            if (!_caster->isInFront(target, _coneAngle))
+            // ConeAngle > 0 -> select targets in front
+            // ConeAngle < 0 -> select targets in back
+            if (_caster->HasInArc(_coneAngle, target) != G3D::fuzzyGe(_coneAngle, 0.f))
                 return false;
     }
     return WorldObjectSpellAreaTargetCheck::operator ()(target);
