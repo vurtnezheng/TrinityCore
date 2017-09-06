@@ -472,7 +472,7 @@ int32 SpellEffectInfo::CalcValue(Unit const* caster /*= nullptr*/, int32 const* 
         else if (caster)
             level = caster->getLevel();
 
-        if (!_spellInfo->HasAttribute(SPELL_ATTR11_SCALES_WITH_ITEM_LEVEL) && _spellInfo->HasAttribute(SPELL_ATTR10_USE_SPELL_BASE_LEVEL_FOR_SCALING))
+        if (_spellInfo->BaseLevel && !_spellInfo->HasAttribute(SPELL_ATTR11_SCALES_WITH_ITEM_LEVEL) && _spellInfo->HasAttribute(SPELL_ATTR10_USE_SPELL_BASE_LEVEL_FOR_SCALING))
             level = _spellInfo->BaseLevel;
 
         if (_spellInfo->Scaling.MinScalingLevel && _spellInfo->Scaling.MinScalingLevel > level)
@@ -2559,10 +2559,6 @@ uint32 SpellInfo::GetMaxTicks(uint32 difficulty) const
     int32 DotDuration = GetDuration();
     if (DotDuration == 0)
         return 1;
-
-    // 200% limit
-    if (DotDuration > 30000)
-        DotDuration = 30000;
 
     for (SpellEffectInfo const* effect : GetEffectsForDifficulty(difficulty))
     {
