@@ -617,6 +617,10 @@ void WorldSession::SendListInventory(ObjectGuid vendorGuid)
 
         WorldPackets::NPC::VendorItem& item = packet.Items[count];
 
+        if (PlayerConditionEntry const* playerCondition = sPlayerConditionStore.LookupEntry(vendorItem->PlayerConditionId))
+            if (!ConditionMgr::IsPlayerMeetingCondition(_player, playerCondition))
+                item.PlayerConditionFailed = playerCondition->ID;
+
         if (vendorItem->Type == ITEM_VENDOR_TYPE_ITEM)
         {
             ItemTemplate const* itemTemplate = sObjectMgr->GetItemTemplate(vendorItem->item);
@@ -658,8 +662,14 @@ void WorldSession::SendListInventory(ObjectGuid vendorGuid)
             item.Quantity = leftInStock;
             item.StackCount = itemTemplate->GetBuyCount();
             item.Price = price;
+            item.DoNotFilterOnVendor = vendorItem->IgnoreFiltering;
 
             item.Item.ItemID = vendorItem->item;
+            if (!vendorItem->BonusListIDs.empty())
+            {
+                item.Item.ItemBonus = boost::in_place();
+                item.Item.ItemBonus->BonusListIDs = vendorItem->BonusListIDs;
+            }
         }
         else if (vendorItem->Type == ITEM_VENDOR_TYPE_CURRENCY)
         {
@@ -675,6 +685,7 @@ void WorldSession::SendListInventory(ObjectGuid vendorGuid)
             item.Item.ItemID = vendorItem->item;
             item.Type = vendorItem->Type;
             item.StackCount = vendorItem->maxcount;
+            item.DoNotFilterOnVendor = vendorItem->IgnoreFiltering;
         }
         else
             continue;
@@ -1273,4 +1284,20 @@ void WorldSession::HandleSortReagentBankBags(WorldPackets::Item::SortReagentBank
     // TODO: Implement sorting
     // Placeholder to prevent completely locking out bags clientside
     SendPacket(WorldPackets::Item::SortBagsResult().Write());
+}
+
+void WorldSession::HandleRemoveNewItem(WorldPackets::Item::RemoveNewItem& removeNewItem)
+{
+    Item* item = _player->GetItemByGuid(removeNewItem.ItemGuid);
+    if (!item)
+    {
+        TC_LOG_DEBUG("network", "WorldSession::HandleRemoveNewItem: Item (%s) not found for %s!", removeNewItem.ItemGuid.ToString().c_str(), GetPlayerInfo().c_str());
+        return;
+    }
+
+    if (item->HasFlag(ITEM_FIELD_FLAGS, ITEM_FIELD_FLAG_NEW_ITEM))
+    {
+        item->RemoveFlag(ITEM_FIELD_FLAGS, ITEM_FIELD_FLAG_NEW_ITEM);
+        item->SetState(ITEM_CHANGED, _player);
+    }
 }

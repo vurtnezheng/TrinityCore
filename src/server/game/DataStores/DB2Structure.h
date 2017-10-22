@@ -974,6 +974,7 @@ struct FactionTemplateEntry
         return EnemyMask == 0 && FriendMask == 0;
     }
     bool IsContestedGuardFaction() const { return (Flags & FACTION_TEMPLATE_FLAG_CONTESTED_GUARD) != 0; }
+    bool ShouldSparAttack() const { return (Flags & FACTION_TEMPLATE_ENEMY_SPAR) != 0; }
 };
 
 struct GameObjectsEntry
@@ -1456,6 +1457,12 @@ struct ItemExtendedCostEntry
     uint8 RequiredFactionStanding;
     uint8 RequirementFlags;
     uint8 RequiredAchievement;
+};
+
+struct ItemLevelSelectorEntry
+{
+    uint32 ID;
+    uint16 ItemLevel;
 };
 
 struct ItemLimitCategoryEntry
